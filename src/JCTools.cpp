@@ -140,20 +140,20 @@ namespace JCTools
 			throw std::runtime_error{ fmt::format("Can't find \"{}\" in \"{}\"", data001Filename, srcData.string()) };
 		}
 
-		const auto executableInfo{ JCExe::findFilenamePathAndVersion(srcExe) };
+		const auto exeConstructorInfo{ JCExe::findFilenamePathAndVersion(srcExe) };
 
-		if (!executableInfo.has_value())
+		if (!exeConstructorInfo.has_value())
 		{
 			throw std::runtime_error{ fmt::format("Can't find compatible playstation executable in \"{}\"", srcExe.string()) };
 		}
 
-		const JCExe exeInfo{ executableInfo.value().version };
+		const JCExe exeInfo{ exeConstructorInfo.value().version };
 
 		fmt::print("{} version found\n", exeInfo.toString());
 
 		std::ifstream
 			data001{ data001Path, std::ifstream::binary },
-			executable{ executableInfo.value().path, std::ifstream::binary };
+			executable{ exeConstructorInfo.value().path, std::ifstream::binary };
 
 		const auto nbFiles{ exeInfo.nbData001Files() };
 		std::vector<FileInfo> filesInfo(nbFiles);
