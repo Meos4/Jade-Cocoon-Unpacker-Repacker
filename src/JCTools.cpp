@@ -9,134 +9,134 @@
 #include <fstream>
 #include <limits>
 
-static constexpr auto sectorSize{ 2048u };
-static constexpr auto data001Filename{ "DATA.001" };
-
-struct DslLOC
-{
-	u8 minutes;
-	u8 seconds;
-	u8 sectors;
-	u8 track;
-};
-
-struct FileInfo
-{
-	DslLOC position;
-	u32 nbSectors;
-	u32 size;
-};
-
-static s32 DsPosToInt(DslLOC* p)
-{
-	s32 v0, v1, a0, a1, a2;
-	v1 = p->minutes;
-	a2 = p->seconds;
-	a1 = v1 >> 4;
-	v0 = a1 << 2;
-	v0 += a1;
-	v0 <<= 1;
-	v1 &= 0xF;
-	v0 += v1;
-	a1 = v0 << 4;
-	a1 -= v0;
-	a1 <<= 2;
-	v1 = a2 >> 4;
-	v0 = v1 << 2;
-	v0 += v1;
-	v0 <<= 1;
-	a2 &= 0xF;
-	v0 += a2;
-	a1 += v0;
-	v1 = a1 << 2;
-	v1 += a1;
-	v0 = v1 << 4;
-	a1 = p->sectors;
-	v0 -= v1;
-	a0 = a1 >> 4;
-	v1 = a0 << 2;
-	v1 += a0;
-	v1 <<= 1;
-	a1 &= 0xF;
-	v1 += a1;
-	v0 += v1;
-	return v0 - 0x96;
-}
-
-static DslLOC* DsIntToPos(s32 i, DslLOC* p)
-{
-	s32 v1, a0, a1, a2, a3, t0, t1, t3, hi;
-	v1 = 0x1B4E81B5;
-	a0 = i + 0x96;
-	hi = (static_cast<u64>(a0) * v1) >> 32;
-	a1 = 0x88888889;
-	v1 = hi;
-	a3 = v1 >> 3;
-	v1 = a0 >> 31;
-	a3 -= v1;
-	hi = (static_cast<u64>(a3) * a1) >> 32;
-	t1 = 0x66666667;
-	a1 = a3 << 2;
-	a1 += a3;
-	v1 = a1 << 4;
-	a2 = hi;
-	v1 -= a1;
-	a0 -= v1;
-	hi = (static_cast<u64>(a0) * t1) >> 32;
-	v1 = a3 >> 31;
-	t0 = a2 + a3;
-	t0 >>= 5;
-	t0 -= v1;
-	v1 = t0 << 4;
-	v1 -= t0;
-	a1 = hi;
-	v1 <<= 2;
-	a3 -= v1;
-	hi = (static_cast<u64>(a3) * t1) >> 32;
-	v1 = a0 >> 31;
-	a1 >>= 2;
-	a1 -= v1;
-	a2 = a1 << 4;
-	v1 = a1 << 2;
-	v1 += a1;
-	v1 <<= 1;
-	a0 -= v1;
-	t3 = hi;
-	a2 += a0;
-	v1 = a3 >> 31;
-	hi = (static_cast<u64>(t0) * t1) >> 32;
-	p->sectors = static_cast<u8>(a2);
-	a0 = t3 >> 2;
-	a0 -= v1;
-	a1 = a0 << 4;
-	v1 = a0 << 2;
-	v1 += a0;
-	v1 <<= 1;
-	a3 -= v1;
-	a1 += a3;
-	v1 = t0 >> 31;
-	p->seconds = static_cast<u8>(a1);
-	t1 = hi;
-	a0 = t1 >> 2;
-	a0 -= v1;
-	a1 = a0 << 4;
-	v1 = a0 << 2;
-	v1 += a0;
-	v1 <<= 1;
-	t0 -= v1;
-	a1 += t0;
-	p->minutes = static_cast<u8>(a1);
-	return p;
-}
-
-struct PathSize
-{
-	std::filesystem::path path;
-	std::size_t size;
-};
-
 namespace JCTools
 {
+	static constexpr auto sectorSize{ 2048u };
+	static constexpr auto data001Filename{ "DATA.001" };
+
+	struct DslLOC
+	{
+		u8 minutes;
+		u8 seconds;
+		u8 sectors;
+		u8 track;
+	};
+
+	struct FileInfo
+	{
+		DslLOC position;
+		u32 nbSectors;
+		u32 size;
+	};
+
+	static s32 DsPosToInt(DslLOC* p)
+	{
+		s32 v0, v1, a0, a1, a2;
+		v1 = p->minutes;
+		a2 = p->seconds;
+		a1 = v1 >> 4;
+		v0 = a1 << 2;
+		v0 += a1;
+		v0 <<= 1;
+		v1 &= 0xF;
+		v0 += v1;
+		a1 = v0 << 4;
+		a1 -= v0;
+		a1 <<= 2;
+		v1 = a2 >> 4;
+		v0 = v1 << 2;
+		v0 += v1;
+		v0 <<= 1;
+		a2 &= 0xF;
+		v0 += a2;
+		a1 += v0;
+		v1 = a1 << 2;
+		v1 += a1;
+		v0 = v1 << 4;
+		a1 = p->sectors;
+		v0 -= v1;
+		a0 = a1 >> 4;
+		v1 = a0 << 2;
+		v1 += a0;
+		v1 <<= 1;
+		a1 &= 0xF;
+		v1 += a1;
+		v0 += v1;
+		return v0 - 0x96;
+	}
+
+	static DslLOC* DsIntToPos(s32 i, DslLOC* p)
+	{
+		s32 v1, a0, a1, a2, a3, t0, t1, t3, hi;
+		v1 = 0x1B4E81B5;
+		a0 = i + 0x96;
+		hi = (static_cast<u64>(a0) * v1) >> 32;
+		a1 = 0x88888889;
+		v1 = hi;
+		a3 = v1 >> 3;
+		v1 = a0 >> 31;
+		a3 -= v1;
+		hi = (static_cast<u64>(a3) * a1) >> 32;
+		t1 = 0x66666667;
+		a1 = a3 << 2;
+		a1 += a3;
+		v1 = a1 << 4;
+		a2 = hi;
+		v1 -= a1;
+		a0 -= v1;
+		hi = (static_cast<u64>(a0) * t1) >> 32;
+		v1 = a3 >> 31;
+		t0 = a2 + a3;
+		t0 >>= 5;
+		t0 -= v1;
+		v1 = t0 << 4;
+		v1 -= t0;
+		a1 = hi;
+		v1 <<= 2;
+		a3 -= v1;
+		hi = (static_cast<u64>(a3) * t1) >> 32;
+		v1 = a0 >> 31;
+		a1 >>= 2;
+		a1 -= v1;
+		a2 = a1 << 4;
+		v1 = a1 << 2;
+		v1 += a1;
+		v1 <<= 1;
+		a0 -= v1;
+		t3 = hi;
+		a2 += a0;
+		v1 = a3 >> 31;
+		hi = (static_cast<u64>(t0) * t1) >> 32;
+		p->sectors = static_cast<u8>(a2);
+		a0 = t3 >> 2;
+		a0 -= v1;
+		a1 = a0 << 4;
+		v1 = a0 << 2;
+		v1 += a0;
+		v1 <<= 1;
+		a3 -= v1;
+		a1 += a3;
+		v1 = t0 >> 31;
+		p->seconds = static_cast<u8>(a1);
+		t1 = hi;
+		a0 = t1 >> 2;
+		a0 -= v1;
+		a1 = a0 << 4;
+		v1 = a0 << 2;
+		v1 += a0;
+		v1 <<= 1;
+		t0 -= v1;
+		a1 += t0;
+		p->minutes = static_cast<u8>(a1);
+		return p;
+	}
+
+	struct PathSize
+	{
+		std::filesystem::path path;
+		std::size_t size;
+	};
+
 	void unpacker(const std::filesystem::path& srcExe, const std::filesystem::path& srcData, const std::filesystem::path& dest)
 	{
 		const std::filesystem::path data001Path{ fmt::format("{}/{}", srcData.string(), data001Filename) };
