@@ -129,6 +129,12 @@ static DslLOC* DsIntToPos(s32 i, DslLOC* p)
 	return p;
 }
 
+struct PathSize
+{
+	std::filesystem::path path;
+	std::size_t size;
+};
+
 namespace JCTools
 {
 	void unpacker(const std::filesystem::path& srcExe, const std::filesystem::path& srcData, const std::filesystem::path& dest)
@@ -195,30 +201,35 @@ namespace JCTools
 	void repacker(const std::filesystem::path& srcExe, const std::filesystem::path& srcData,
 		const std::filesystem::path& destExe, const std::filesystem::path& destData)
 	{
-		const auto constructorInfo{ JCExe::findFilenamePathAndVersion(srcExe) };
+		const auto exeConstructorInfo{ JCExe::findFilenamePathAndVersion(srcExe) };
 
-		if (!constructorInfo.has_value())
+		if (!exeConstructorInfo.has_value())
 		{
 			throw std::runtime_error{ fmt::format("Can't find compatible playstation executable in \"{}\"", srcExe.string()) };
 		}
 
-		const JCExe exeInfo{ constructorInfo.value().version };
+		const JCExe exeInfo{ exeConstructorInfo.value().version };
 
 		fmt::print("{} version found\n", exeInfo.toString());
 
 		const auto data001FilesPath{ exeInfo.data001FilesPath() };
+		u32 nbFiles{ static_cast<u32>(data001FilesPath.size()) };
+		u32 maxFileSize{};
 		u64 totalFilesSize{};
 
-		for (const auto& filePathStr : data001FilesPath)
+		std::vector<PathSize> filesPathSize(nbFiles);
+
+		for (u32 i{}; i < nbFiles; ++i)
 		{
-			const std::filesystem::path filePath{ fmt::format("{}/{}", srcData.string(), filePathStr) };
+			auto* const file{ &filesPathSize[i] };
+			file->path = fmt::format("{}/{}", srcData.string(), data001FilesPath[i]);
+			file->size = std::filesystem::file_size(file->path);
 
-			if (!std::filesystem::is_regular_file(filePath))
+			totalFilesSize += file->size;
+			if (file->size > maxFileSize)
 			{
-				throw std::runtime_error{ fmt::format("\"{}\" file is missing in \"{}\"", filePath.filename().string(), filePath.parent_path().string()) };
+				maxFileSize = static_cast<u32>(file->size);
 			}
-
-			totalFilesSize += std::filesystem::file_size(filePath);
 		}
 
 		if (totalFilesSize > std::numeric_limits<u32>::max())
@@ -227,12 +238,12 @@ namespace JCTools
 		}
 
 		std::filesystem::create_directories(destData);
-		const std::filesystem::path exePath{ fmt::format("{}/{}", destExe.string(), constructorInfo.value().path.filename().string()) };
+		const std::filesystem::path exePath{ fmt::format("{}/{}", destExe.string(), exeConstructorInfo.value().path.filename().string()) };
 
 		if (srcExe != destExe)
 		{
 			std::filesystem::create_directories(destExe);
-			std::filesystem::copy_file(constructorInfo.value().path, exePath, std::filesystem::copy_options::overwrite_existing);
+			std::filesystem::copy_file(exeConstructorInfo.value().path, exePath, std::filesystem::copy_options::overwrite_existing);
 		}
 
 		std::ofstream data001{ fmt::format("{}/{}", destData.string(), data001Filename), std::ofstream::binary };
@@ -240,47 +251,56 @@ namespace JCTools
 
 		fmt::print("Repacking files...\n");
 
+		const auto& offset{ exeInfo.offset() };
+
 		DslLOC data001Loc{};
-		executable.seekg(exeInfo.offset().data001FileInfoBegin);
+		executable.seekg(offset.data001FileInfoBegin);
 		executable.read((char*)&data001Loc, sizeof(data001Loc));
 
-		auto sectorPosition{ static_cast<unsigned>(DsPosToInt(&data001Loc)) };
-		executable.seekg(exeInfo.offset().data001FileInfoBegin);
+		auto sectorPosition{ DsPosToInt(&data001Loc) };
+		const auto remainderBuffer{ maxFileSize % sectorSize };
+		std::vector<char> buffer(remainderBuffer ? maxFileSize + sectorSize - remainderBuffer : maxFileSize);
+		auto* const bufferPtr{ buffer.data() };
 
-		for (const auto& filePathStr : data001FilesPath)
+		executable.seekg(offset.data001FileInfoBegin);
+
+		for (const auto& [path, size] : filesPathSize)
 		{
-			const std::filesystem::path filePath{ fmt::format("{}/{}", srcData.string(), filePathStr) };
-			const auto fileSize{ static_cast<u32>(std::filesystem::file_size(filePath)) };
-
 			DslLOC fileLoc{};
 			DsIntToPos(sectorPosition, &fileLoc);
 			const FileInfo fileInfo
 			{
 				.position = fileLoc,
-				.nbSectors = (fileSize + sectorSize - 1) >> 0xB,
-				.size = fileSize
+				.nbSectors = (static_cast<u32>(size) + sectorSize - 1) >> 0xB,
+				.size = static_cast<u32>(size)
 			};
 
-			const auto rest{ fileSize % sectorSize };
-			std::vector<char> buffer(rest ? fileSize + sectorSize - rest : fileSize);
-			std::ifstream file{ filePath, std::ifstream::binary };
+			const auto remainder{ static_cast<u32>(size) % sectorSize};
+			auto fileSizeSector{ static_cast<u32>(size) };
+			if (remainder)
+			{
+				const auto padding{ sectorSize - remainder };
+				fileSizeSector += padding;
+				std::memset(bufferPtr + size, 0, padding);
+			}
 
-			file.read(buffer.data(), fileSize);
-			data001.write(buffer.data(), buffer.size());
+			std::ifstream file{ path, std::ifstream::binary };
+			file.read(bufferPtr, size);
+			data001.write(bufferPtr, fileSizeSector);
 			executable.write((char*)&fileInfo, sizeof(fileInfo));
 
-			sectorPosition += static_cast<u32>(buffer.size()) / sectorSize;
+			sectorPosition += fileSizeSector / sectorSize;
 		}
 
 		// DATA/VOICE.XA MODE 2336
 		sectorPosition += 1;
 
 		FileInfo voiceXaFileInfo;
-		executable.seekg(exeInfo.offset().voiceXaFileInfoBegin);
+		executable.seekg(offset.voiceXaFileInfoBegin);
 		executable.read((char*)&voiceXaFileInfo, sizeof(voiceXaFileInfo));
 		DsIntToPos(sectorPosition, &voiceXaFileInfo.position);
 
-		executable.seekg(exeInfo.offset().voiceXaFileInfoBegin);
+		executable.seekg(offset.voiceXaFileInfoBegin);
 		executable.write((char*)&voiceXaFileInfo, sizeof(voiceXaFileInfo));
 
 		sectorPosition += voiceXaFileInfo.nbSectors;
@@ -291,7 +311,7 @@ namespace JCTools
 		std::vector<FileInfo> movieStrFilesInfo(exeInfo.nbMovieStrFiles());
 
 		executable.read((char*)movieStrFilesInfo.data(), movieStrFilesInfo.size() * sizeof(FileInfo));
-		executable.seekg(exeInfo.offset().movieStrFileInfoBegin);
+		executable.seekg(offset.movieStrFileInfoBegin);
 
 		for (auto& strFileInfo : movieStrFilesInfo)
 		{
