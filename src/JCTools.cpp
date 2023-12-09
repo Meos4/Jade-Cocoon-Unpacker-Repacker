@@ -275,7 +275,7 @@ namespace JCTools
 				.size = static_cast<u32>(size)
 			};
 
-			const auto remainder{ static_cast<u32>(size) % sectorSize};
+			const auto remainder{ static_cast<u32>(size) % sectorSize };
 			auto fileSizeSector{ static_cast<u32>(size) };
 			if (remainder)
 			{
