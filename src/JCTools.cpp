@@ -137,49 +137,56 @@ namespace JCTools
 
 		if (!std::filesystem::is_regular_file(data001Path))
 		{
-			throw std::runtime_error{ fmt::format("Can't find \"{}\" in \"{}\"", data001Path.filename().string(), data001Path.parent_path().string()) };
+			throw std::runtime_error{ fmt::format("Can't find \"{}\" in \"{}\"", data001Filename, srcData.string()) };
 		}
 
-		const auto constructorInfo{ JCExe::findFilenamePathAndVersion(srcExe) };
+		const auto executableInfo{ JCExe::findFilenamePathAndVersion(srcExe) };
 
-		if (!constructorInfo.has_value())
+		if (!executableInfo.has_value())
 		{
 			throw std::runtime_error{ fmt::format("Can't find compatible playstation executable in \"{}\"", srcExe.string()) };
 		}
 
-		const JCExe exeInfo{ constructorInfo.value().version };
+		const JCExe exeInfo{ executableInfo.value().version };
 
 		fmt::print("{} version found\n", exeInfo.toString());
 
 		std::ifstream
 			data001{ data001Path, std::ifstream::binary },
-			executable{ constructorInfo.value().path, std::ifstream::binary };
+			executable{ executableInfo.value().path, std::ifstream::binary };
+
+		const auto nbFiles{ exeInfo.nbData001Files() };
+		std::vector<FileInfo> filesInfo(nbFiles);
+
+		executable.seekg(exeInfo.offset().data001FileInfoBegin);
+		executable.read((char*)filesInfo.data(), nbFiles * sizeof(FileInfo));
+		const auto data001Sector{ DsPosToInt(&filesInfo[0].position) };
+
+		const auto maxFileSizeElem{ std::max_element(filesInfo.begin(), filesInfo.end(),
+			[](const FileInfo& a, const FileInfo& b)
+			{
+				return a.size < b.size;
+			})};
 
 		std::filesystem::create_directories(dest);
 
 		fmt::print("Unpacking files...\n");
 
-		DslLOC data001Loc;
-		executable.seekg(exeInfo.offset().data001FileInfoBegin);
-		executable.read((char*)&data001Loc, sizeof(data001Loc));
-
-		const auto data001Sector{ DsPosToInt(&data001Loc) };
 		const auto data001FilesPath{ exeInfo.data001FilesPath() };
-		executable.seekg(exeInfo.offset().data001FileInfoBegin);
+		std::vector<char> buffer(maxFileSizeElem->size);
+		auto* const bufferPtr{ buffer.data() };
 
-		for (const auto& filePathStr : data001FilesPath)
+		for (u32 i{}; i < nbFiles; ++i)
 		{
-			const std::filesystem::path filePath{ fmt::format("{}/{}", dest.string(), filePathStr) };
+			const std::filesystem::path filePath{ fmt::format("{}/{}", dest.string(), data001FilesPath[i]) };
+			const auto fileSize{ filesInfo[i].size };
 			std::filesystem::create_directories(filePath.parent_path());
-			FileInfo fileInfo;
-			executable.read((char*)&fileInfo, sizeof(fileInfo));
 
-			std::vector<char> buffer(fileInfo.size);
-			data001.seekg((DsPosToInt(&fileInfo.position) - data001Sector) * sectorSize);
-			data001.read(buffer.data(), buffer.size());
+			data001.seekg((DsPosToInt(&filesInfo[i].position) - data001Sector) * sectorSize);
+			data001.read(bufferPtr, fileSize);
 
 			std::ofstream file{ filePath, std::ofstream::binary };
-			file.write((const char*)buffer.data(), buffer.size());
+			file.write(bufferPtr, fileSize);
 		}
 
 		fmt::print("{} Files unpacked\n", data001FilesPath.size());
