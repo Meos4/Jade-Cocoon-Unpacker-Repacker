@@ -1226,7 +1226,7 @@ std::optional<JCExe::FilenamePathVersion> JCExe::findFilenamePathAndVersion(cons
 	{
 		const auto directoryContentPath{ directoryContent.path() };
 		if (std::filesystem::is_regular_file(directoryContentPath))
-		{	
+		{
 			static constexpr std::array<char, 8> psxExeHeader{ 0x50, 0x53, 0x2D, 0x58, 0x20, 0x45, 0x58, 0x45 }; // PS-X EXE
 			std::remove_const_t<decltype(psxExeHeader)> bufferPsxExe{};
 			std::ifstream file{ directoryContentPath, std::ifstream::binary };
