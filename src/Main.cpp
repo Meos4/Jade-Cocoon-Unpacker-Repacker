@@ -12,7 +12,7 @@ int main(int argc, char** argv)
 {
 	try
 	{
-		fmt::print("Jade Cocoon Unpacker / Repacker v1.2.0 by Meos\n\n");
+		fmt::print("Jade Cocoon Unpacker / Repacker v1.3.0 by Meos\n\n");
 
 		if (argc < 2)
 		{
