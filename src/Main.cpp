@@ -2,11 +2,11 @@
 
 #include "fmt/format.h"
 
-#include <stdexcept>
-#include <iostream>
-#include <filesystem>
-#include <limits>
 #include <cstring>
+#include <filesystem>
+#include <iostream>
+#include <limits>
+#include <stdexcept>
 
 int main(int argc, char** argv)
 {
