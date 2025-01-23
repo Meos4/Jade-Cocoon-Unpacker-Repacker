@@ -4,7 +4,7 @@ Can unpack / repack DATA.001 files and is compatible with all known retail game 
 
 Download
 --------
-[Romhacking](https://www.romhacking.net/utilities/1716)
+[GitHub](https://github.com/Meos4/Jade-Cocoon-Unpacker-Repacker/releases)
 
 How to Use
 ----------
