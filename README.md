@@ -2,10 +2,6 @@ Feature
 -------
 Can unpack / repack DATA.001 files and is compatible with all known retail game versions.
 
-Download
---------
-[GitHub](https://github.com/Meos4/Jade-Cocoon-Unpacker-Repacker/releases)
-
 How to Use
 ----------
 Using the executable:
@@ -25,7 +21,3 @@ Building
 Requirements:
 * CMake
 * C++20
-
-Dependencies
------------
-* [fmt](https://github.com/fmtlib/fmt)
